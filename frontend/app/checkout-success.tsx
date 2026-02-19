@@ -189,6 +189,26 @@ const styles = StyleSheet.create({
         color: '#27AE60',
         marginBottom: 32,
     },
+    orderNumberContainer: {
+        backgroundColor: '#F5F5F5',
+        padding: 16,
+        marginVertical: 16,
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+    },
+    orderNumberLabel: {
+        fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+        fontSize: 10,
+        color: '#666',
+        marginBottom: 4,
+        textTransform: 'uppercase',
+    },
+    orderNumber: {
+        fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#000',
+    },
     loadingText: {
         fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
         fontSize: 12,
