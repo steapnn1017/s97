@@ -427,6 +427,19 @@ async def get_checkout_status(stripe_session_id: str):
         logger.error(f"Error checking checkout status: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
+@api_router.get("/payment-transaction/{stripe_session_id}")
+async def get_payment_transaction(stripe_session_id: str):
+    """Get payment transaction by Stripe session ID"""
+    try:
+        transaction = await db.payment_transactions.find_one({"stripe_session_id": stripe_session_id})
+        if not transaction:
+            raise HTTPException(status_code=404, detail="Transaction not found")
+        return serialize_doc(transaction)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 @api_router.post("/webhook/stripe")
 async def stripe_webhook(request: Request):
     """Handle Stripe webhooks"""
