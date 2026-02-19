@@ -141,7 +141,7 @@ export default function ShopScreen() {
                                     <Image
                                         source={getProductImage(product, index)}
                                         style={styles.productImage}
-                                        resizeMode="contain"  // Udržuje proporce obrázku
+                                        resizeMode="contain"
                                     />
                                 </View>
                                 <View style={styles.productInfo}>
