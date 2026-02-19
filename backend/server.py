@@ -469,6 +469,29 @@ async def get_orders():
     orders = await db.orders.find().sort("created_at", -1).to_list(100)
     return serialize_doc(orders)
 
+@api_router.get("/orders/session/{session_id}")
+async def get_orders_by_session(session_id: str):
+    """Get orders by cart session ID (for user's order history)"""
+    orders = await db.orders.find({"cart_session_id": session_id}).sort("created_at", -1).to_list(100)
+    
+    # Populate product details for each order
+    for order in orders:
+        if "items" in order:
+            populated_items = []
+            for item in order["items"]:
+                try:
+                    product = await db.products.find_one({"_id": ObjectId(item["product_id"])})
+                    if product:
+                        populated_items.append({
+                            **item,
+                            "product": serialize_doc(product)
+                        })
+                except:
+                    continue
+            order["items"] = populated_items
+    
+    return serialize_doc(orders)
+
 @api_router.get("/orders/{order_id}")
 async def get_order(order_id: str):
     """Get single order"""
