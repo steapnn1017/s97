@@ -19,6 +19,7 @@ export default function CheckoutSuccessScreen() {
     const sessionId = params.session_id as string;
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
     const [paymentStatus, setPaymentStatus] = useState('');
+    const [orderNumber, setOrderNumber] = useState('');
     const fetchCart = useCartStore((state) => state.fetchCart);
 
     useEffect(() => {
