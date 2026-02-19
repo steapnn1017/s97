@@ -222,6 +222,10 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
         marginTop: 32,
     },
+    ordersButton: {
+        backgroundColor: '#000',
+        marginTop: 16,
+    },
     buttonText: {
         fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
         fontSize: 12,
