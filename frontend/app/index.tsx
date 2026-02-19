@@ -227,6 +227,12 @@ export default function HomeScreen() {
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.menuItem}
+                onPress={() => { setMenuOpen(false); router.push('/orders'); }}
+              >
+                <Text style={styles.menuItemText}>My Orders</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.menuItem}
                 onPress={() => { setMenuOpen(false); router.push('/admin'); }}
               >
                 <Text style={styles.menuItemText}>Admin Panel</Text>
