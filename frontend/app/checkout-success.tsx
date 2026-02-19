@@ -96,9 +96,22 @@ export default function CheckoutSuccessScreen() {
                         <Text style={styles.checkmark}>✓</Text>
                         <Text style={styles.title}>Thank you</Text>
                         <Text style={styles.subtitle}>Your order has been confirmed</Text>
+                        {orderNumber && (
+                            <View style={styles.orderNumberContainer}>
+                                <Text style={styles.orderNumberLabel}>Order Number</Text>
+                                <Text style={styles.orderNumber}>{orderNumber}</Text>
+                            </View>
+                        )}
                         {paymentStatus === 'paid' && (
                             <Text style={styles.statusText}>Payment successful</Text>
                         )}
+                        <TouchableOpacity
+                            style={[styles.button, styles.ordersButton]}
+                            onPress={() => router.replace('/orders')}
+                            activeOpacity={0.8}
+                        >
+                            <Text style={styles.buttonText}>View My Orders</Text>
+                        </TouchableOpacity>
                     </>
                 ) : (
                     <>
