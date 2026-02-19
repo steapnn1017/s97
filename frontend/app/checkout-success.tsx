@@ -47,7 +47,20 @@ export default function CheckoutSuccessScreen() {
             const data = await response.json();
             setPaymentStatus(data.payment_status);
 
+            // Try to get order number from transaction
             if (data.payment_status === 'paid') {
+                try {
+                    const txResponse = await fetch(`${API_URL}/api/payment-transaction/${sessionId}`);
+                    if (txResponse.ok) {
+                        const txData = await txResponse.json();
+                        if (txData.order_number) {
+                            setOrderNumber(txData.order_number);
+                        }
+                    }
+                } catch (e) {
+                    console.error('Failed to get order number:', e);
+                }
+                
                 setStatus('success');
                 await fetchCart();
                 return;
