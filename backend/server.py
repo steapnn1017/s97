@@ -442,6 +442,32 @@ async def get_order(order_id: str):
 
 # ===================== SEED DATA =====================
 
+# Discount codes
+DISCOUNT_CODES = {
+    "WELCOME10": {"type": "percentage", "value": 10},  # 10% off
+    "SAVE20": {"type": "percentage", "value": 20},     # 20% off
+    "FREE50": {"type": "fixed", "value": 50},          # $50 off
+}
+
+# Shipping methods
+SHIPPING_METHODS = {
+    "standard": {"name": "Standard Shipping (5-7 days)", "price": 10.0},
+    "express": {"name": "Express Shipping (2-3 days)", "price": 25.0},
+    "overnight": {"name": "Overnight Shipping (1 day)", "price": 50.0},
+}
+
+@api_router.get("/shipping-methods")
+async def get_shipping_methods():
+    """Get available shipping methods"""
+    return SHIPPING_METHODS
+
+@api_router.post("/validate-discount")
+async def validate_discount(code: str):
+    """Validate discount code"""
+    if code.upper() in DISCOUNT_CODES:
+        return {"valid": True, "discount": DISCOUNT_CODES[code.upper()]}
+    return {"valid": False, "message": "Invalid discount code"}
+
 @api_router.post("/seed")
 async def seed_products():
     """Seed initial products"""
