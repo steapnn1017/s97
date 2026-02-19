@@ -230,7 +230,6 @@ const styles = StyleSheet.create({
     productImage: {
         width: '100%',
         height: '100%',
-        resizeMode: 'contain', // Zachování proporcí obrázku
     },
     productInfo: {
         gap: 4,
