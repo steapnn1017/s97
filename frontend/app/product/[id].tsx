@@ -159,7 +159,7 @@ export default function ProductDetailScreen() {
                                 <Image
                                     source={{ uri: item }}
                                     style={styles.productImage}
-                                    resizeMode="cover"
+                                    resizeMode="contain"
                                 />
                             </View>
                         )}
