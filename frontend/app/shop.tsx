@@ -221,11 +221,11 @@ const styles = StyleSheet.create({
     },
     productImageContainer: {
         width: '100%',
-        height: 300,  // Zvětšíme výšku kontejneru
+        height: 180,
         backgroundColor: '#F5F5F5',
         marginBottom: 8,
         justifyContent: 'center',
-        alignItems: 'center', // Ujistíme se, že obrázek je uprostřed
+        alignItems: 'center',
     },
     productImage: {
         width: '100%',
