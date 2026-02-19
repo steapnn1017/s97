@@ -272,18 +272,37 @@ async def create_checkout_session(request: Request, checkout_request: CheckoutRe
     if not cart or not cart.get("items"):
         raise HTTPException(status_code=400, detail="Cart is empty")
     
-    # Calculate total from backend (security - don't trust frontend)
-    total = 0.0
+    # Calculate subtotal from backend (security - don't trust frontend)
+    subtotal = 0.0
     for item in cart.get("items", []):
         try:
             product = await db.products.find_one({"_id": ObjectId(item["product_id"])})
             if product:
-                total += product["price"] * item["quantity"]
+                subtotal += product["price"] * item["quantity"]
         except:
             continue
     
-    if total <= 0:
+    if subtotal <= 0:
         raise HTTPException(status_code=400, detail="Invalid cart total")
+    
+    # Apply discount code
+    discount_amount = 0.0
+    discount_info = None
+    if checkout_request.discount_code:
+        code = checkout_request.discount_code.upper()
+        if code in DISCOUNT_CODES:
+            discount_info = DISCOUNT_CODES[code]
+            if discount_info["type"] == "percentage":
+                discount_amount = subtotal * (discount_info["value"] / 100)
+            elif discount_info["type"] == "fixed":
+                discount_amount = min(discount_info["value"], subtotal)
+    
+    # Add shipping cost
+    shipping_cost = SHIPPING_METHODS.get(checkout_request.shipping_method, SHIPPING_METHODS["standard"])["price"]
+    
+    # Calculate final total
+    total = subtotal - discount_amount + shipping_cost
+    total = max(total, 0.50)  # Minimum charge for Stripe
     
     # Build URLs from provided origin
     origin_url = checkout_request.origin_url.rstrip('/')
@@ -305,17 +324,32 @@ async def create_checkout_session(request: Request, checkout_request: CheckoutRe
         metadata={
             "cart_session_id": checkout_request.session_id,
             "customer_email": checkout_request.shipping_info.email,
-            "shipping_name": checkout_request.shipping_info.full_name
+            "shipping_name": checkout_request.shipping_info.full_name,
+            "subtotal": str(subtotal),
+            "discount_code": checkout_request.discount_code or "",
+            "discount_amount": str(discount_amount),
+            "shipping_method": checkout_request.shipping_method,
+            "shipping_cost": str(shipping_cost)
         }
     )
     
     session = await stripe_checkout.create_checkout_session(checkout_req)
     
+    # Generate order number
+    import random
+    order_number = f"ORD-{random.randint(100000, 999999)}"
+    
     # Create payment transaction record
     transaction = {
         "stripe_session_id": session.session_id,
         "cart_session_id": checkout_request.session_id,
-        "amount": total,
+        "order_number": order_number,
+        "subtotal": subtotal,
+        "discount_code": checkout_request.discount_code,
+        "discount_amount": discount_amount,
+        "shipping_method": checkout_request.shipping_method,
+        "shipping_cost": shipping_cost,
+        "total": total,
         "currency": "usd",
         "status": "pending",
         "payment_status": "initiated",
@@ -327,9 +361,15 @@ async def create_checkout_session(request: Request, checkout_request: CheckoutRe
     
     # Create order record
     order = {
+        "order_number": order_number,
         "cart_session_id": checkout_request.session_id,
         "stripe_session_id": session.session_id,
         "items": cart.get("items", []),
+        "subtotal": subtotal,
+        "discount_code": checkout_request.discount_code,
+        "discount_amount": discount_amount,
+        "shipping_method": checkout_request.shipping_method,
+        "shipping_cost": shipping_cost,
         "total": total,
         "shipping_info": checkout_request.shipping_info.dict(),
         "status": "pending",
@@ -338,7 +378,7 @@ async def create_checkout_session(request: Request, checkout_request: CheckoutRe
     }
     await db.orders.insert_one(order)
     
-    return {"url": session.url, "session_id": session.session_id}
+    return {"url": session.url, "session_id": session.session_id, "order_number": order_number}
 
 @api_router.get("/checkout/status/{stripe_session_id}")
 async def get_checkout_status(stripe_session_id: str):
