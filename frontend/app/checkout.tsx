@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -28,10 +28,16 @@ interface ShippingForm {
     phone: string;
 }
 
+interface ShippingMethod {
+    name: string;
+    price: number;
+}
+
 export default function CheckoutScreen() {
     const insets = useSafeAreaInsets();
     const { sessionId, total, items } = useCartStore();
     const [loading, setLoading] = useState(false);
+    const [discountLoading, setDiscountLoading] = useState(false);
     const [form, setForm] = useState<ShippingForm>({
         full_name: '',
         email: '',
@@ -42,6 +48,72 @@ export default function CheckoutScreen() {
         phone: '',
     });
     const [errors, setErrors] = useState<Partial<ShippingForm>>({});
+    const [discountCode, setDiscountCode] = useState('');
+    const [appliedDiscount, setAppliedDiscount] = useState<any>(null);
+    const [selectedShipping, setSelectedShipping] = useState('standard');
+    const [shippingMethods, setShippingMethods] = useState<Record<string, ShippingMethod>>({});
+
+    useEffect(() => {
+        fetchShippingMethods();
+    }, []);
+
+    const fetchShippingMethods = async () => {
+        try {
+            const response = await fetch(`${API_URL}/api/shipping-methods`);
+            const data = await response.json();
+            setShippingMethods(data);
+        } catch (error) {
+            console.error('Failed to fetch shipping methods:', error);
+        }
+    };
+
+    const applyDiscount = async () => {
+        if (!discountCode.trim()) return;
+
+        setDiscountLoading(true);
+        try {
+            const response = await fetch(`${API_URL}/api/validate-discount?code=${discountCode}`, {
+                method: 'POST',
+            });
+            const data = await response.json();
+
+            if (data.valid) {
+                setAppliedDiscount(data.discount);
+                Alert.alert('Success', 'Discount code applied!');
+            } else {
+                Alert.alert('Error', data.message || 'Invalid discount code');
+                setAppliedDiscount(null);
+            }
+        } catch (error) {
+            console.error('Failed to validate discount:', error);
+            Alert.alert('Error', 'Failed to validate discount code');
+        } finally {
+            setDiscountLoading(false);
+        }
+    };
+
+    const calculateTotal = () => {
+        let subtotal = total;
+        let discountAmount = 0;
+
+        if (appliedDiscount) {
+            if (appliedDiscount.type === 'percentage') {
+                discountAmount = subtotal * (appliedDiscount.value / 100);
+            } else if (appliedDiscount.type === 'fixed') {
+                discountAmount = Math.min(appliedDiscount.value, subtotal);
+            }
+        }
+
+        const shippingCost = shippingMethods[selectedShipping]?.price || 0;
+        const finalTotal = subtotal - discountAmount + shippingCost;
+
+        return {
+            subtotal,
+            discountAmount,
+            shippingCost,
+            total: Math.max(finalTotal, 0)
+        };
+    };
 
     const validateForm = (): boolean => {
         const newErrors: Partial<ShippingForm> = {};
@@ -81,6 +153,8 @@ export default function CheckoutScreen() {
                     session_id: sessionId,
                     shipping_info: form,
                     origin_url: originUrl,
+                    discount_code: appliedDiscount ? discountCode : null,
+                    shipping_method: selectedShipping,
                 }),
             });
 
@@ -117,6 +191,8 @@ export default function CheckoutScreen() {
         }
     };
 
+    const totals = calculateTotal();
+
     return (
         <KeyboardAvoidingView
             style={[styles.container, { paddingTop: insets.top }]}
@@ -143,9 +219,75 @@ export default function CheckoutScreen() {
             >
                 {/* Order Summary */}
                 <View style={styles.summarySection}>
-                    <Text style={styles.sectionLabel}>Order Total</Text>
-                    <Text style={styles.totalAmount}>${total.toFixed(2)}</Text>
+                    <Text style={styles.sectionLabel}>Order Summary</Text>
+                    <View style={styles.summaryRow}>
+                        <Text style={styles.summaryLabel}>Subtotal:</Text>
+                        <Text style={styles.summaryValue}>${totals.subtotal.toFixed(2)}</Text>
+                    </View>
+                    {appliedDiscount && (
+                        <View style={styles.summaryRow}>
+                            <Text style={[styles.summaryLabel, styles.discountText]}>Discount:</Text>
+                            <Text style={[styles.summaryValue, styles.discountText]}>-${totals.discountAmount.toFixed(2)}</Text>
+                        </View>
+                    )}
+                    <View style={styles.summaryRow}>
+                        <Text style={styles.summaryLabel}>Shipping:</Text>
+                        <Text style={styles.summaryValue}>${totals.shippingCost.toFixed(2)}</Text>
+                    </View>
+                    <View style={[styles.summaryRow, styles.totalRow]}>
+                        <Text style={styles.totalLabel}>Total:</Text>
+                        <Text style={styles.totalAmount}>${totals.total.toFixed(2)}</Text>
+                    </View>
                 </View>
+
+                <View style={styles.dividerFull} />
+
+                {/* Discount Code */}
+                <Text style={styles.sectionLabel}>Discount Code</Text>
+                <View style={styles.discountSection}>
+                    <TextInput
+                        style={styles.discountInput}
+                        value={discountCode}
+                        onChangeText={setDiscountCode}
+                        placeholder="Enter code"
+                        placeholderTextColor="#CCC"
+                        autoCapitalize="characters"
+                    />
+                    <TouchableOpacity
+                        style={styles.applyButton}
+                        onPress={applyDiscount}
+                        disabled={discountLoading}
+                    >
+                        {discountLoading ? (
+                            <ActivityIndicator size="small" color="#FFF" />
+                        ) : (
+                            <Text style={styles.applyButtonText}>Apply</Text>
+                        )}
+                    </TouchableOpacity>
+                </View>
+
+                <View style={styles.dividerFull} />
+
+                {/* Shipping Method */}
+                <Text style={styles.sectionLabel}>Shipping Method</Text>
+                {Object.entries(shippingMethods).map(([key, method]) => (
+                    <TouchableOpacity
+                        key={key}
+                        style={[
+                            styles.shippingOption,
+                            selectedShipping === key && styles.shippingOptionActive
+                        ]}
+                        onPress={() => setSelectedShipping(key)}
+                    >
+                        <View style={styles.radio}>
+                            {selectedShipping === key && <View style={styles.radioInner} />}
+                        </View>
+                        <View style={styles.shippingInfo}>
+                            <Text style={styles.shippingName}>{method.name}</Text>
+                            <Text style={styles.shippingPrice}>${method.price.toFixed(2)}</Text>
+                        </View>
+                    </TouchableOpacity>
+                ))}
 
                 <View style={styles.dividerFull} />
 
@@ -246,7 +388,7 @@ export default function CheckoutScreen() {
                     {loading ? (
                         <ActivityIndicator color="#FFF" size="small" />
                     ) : (
-                        <Text style={styles.payButtonText}>Pay ${total.toFixed(2)}</Text>
+                        <Text style={styles.payButtonText}>Pay ${totals.total.toFixed(2)}</Text>
                     )}
                 </TouchableOpacity>
             </View>
@@ -315,12 +457,117 @@ const styles = StyleSheet.create({
         color: '#999',
         textTransform: 'uppercase',
         letterSpacing: 0.5,
+        marginBottom: 12,
+    },
+    summaryRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
         marginBottom: 8,
+    },
+    summaryLabel: {
+        fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+        fontSize: 13,
+        color: '#666',
+    },
+    summaryValue: {
+        fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+        fontSize: 13,
+        color: '#000',
+    },
+    discountText: {
+        color: '#27AE60',
+    },
+    totalRow: {
+        marginTop: 8,
+        paddingTop: 8,
+        borderTopWidth: 1,
+        borderTopColor: '#E0E0E0',
+    },
+    totalLabel: {
+        fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#000',
     },
     totalAmount: {
         fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-        fontSize: 24,
+        fontSize: 20,
+        fontWeight: '600',
         color: '#000',
+    },
+    discountSection: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    discountInput: {
+        flex: 1,
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+        backgroundColor: '#FFF',
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+        fontSize: 14,
+        color: '#000',
+        textTransform: 'uppercase',
+    },
+    applyButton: {
+        backgroundColor: '#000',
+        paddingHorizontal: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+        minWidth: 80,
+    },
+    applyButtonText: {
+        fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+        fontSize: 12,
+        color: '#FFF',
+        textTransform: 'uppercase',
+    },
+    shippingOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        backgroundColor: '#FFF',
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+        marginBottom: 8,
+    },
+    shippingOptionActive: {
+        borderColor: '#000',
+        backgroundColor: '#F8F8F8',
+    },
+    radio: {
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        borderWidth: 2,
+        borderColor: '#000',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    radioInner: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: '#000',
+    },
+    shippingInfo: {
+        flex: 1,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    shippingName: {
+        fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+        fontSize: 12,
+        color: '#000',
+    },
+    shippingPrice: {
+        fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+        fontSize: 12,
+        color: '#666',
     },
     inputGroup: {
         marginBottom: 16,
