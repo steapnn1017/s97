@@ -261,7 +261,7 @@ export default function ProductDetailScreen() {
 }
 
 const IMAGE_WIDTH = width;
-const IMAGE_HEIGHT = width * 0.75; // Reasonable height for product display
+const IMAGE_HEIGHT = width * 0.5; // Compact height for product display
 
 const styles = StyleSheet.create({
     container: {
