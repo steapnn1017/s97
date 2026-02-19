@@ -107,6 +107,8 @@ class CheckoutRequest(BaseModel):
     session_id: str
     shipping_info: ShippingInfo
     origin_url: str
+    discount_code: Optional[str] = None
+    shipping_method: str = "standard"
 
 # ===================== PRODUCT ENDPOINTS =====================
 
